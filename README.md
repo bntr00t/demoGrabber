@@ -8,7 +8,6 @@ this is not working fully as of now, im gonna update it soon
 - Pretty UD to AVs
 
 # To-Do
-- Delete traces
 - add to startup and hide files
 - add startup folders to windows defender exclusion
 

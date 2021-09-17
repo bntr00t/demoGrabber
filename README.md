@@ -6,6 +6,7 @@ this is not working fully as of now, im gonna update it soon
 # Functions
 - Sends Passwords aswell as Token and User Info to Webhook
 - Pretty UD to AVs
+- Sends Screenshot
 
 # To-Do
 - add to startup and hide files

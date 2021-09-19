@@ -1,7 +1,7 @@
 # demoGrabber
 Discord Token and Chrome Password Grabber working through Discord Webhook
 
-this is not working fully as of now, im gonna update it soon
+Working. 
 
 # Functions
 - Sends Passwords aswell as Token and User Info to Webhook

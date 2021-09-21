@@ -612,10 +612,6 @@ try:
         os.remove(filename)
 except BaseException:
         pass
-def slowprint(s, c, newLine = True):
-	for c in s + '\n':
-		sys.stdout.write(c); sys.stdout.flush(); time.sleep(1./30)
-
 
 
 if __name__ == "__main__":

